@@ -1,0 +1,12 @@
+First you need to load an environment that includeds Jewel
+- alijewel is an alias that is used here.
+Then you run the submit_files script, which calls the analyze files script which calls the appropriat
+e analysis script (analyze_hepmc...)
+- This is done as follows: ./submit_files.sh /dcache/alice/marcovl/jewel/run_AA_2tev76_norecoil/ 1 50
+The first argument specifies the directory where the jewel simulations are saved (for now at Marco's dcache directory) this can refere to different energies either for AA or pp. The second and third arg
+ument specifies the start and end folder of the analysis (for pp you shouldn't submit a lot of folders or the job will hit a walltime). It's best to check the available folder options at the specified d
+irectory before running the code.
+NOTE: The output filename is specified in the analyze_files script and it is saved in the working dir
+ectory with the same name as the input directory. There have been instances where some of the subfold
+rs will be missing from the final results (more likely for pp for reasons related to extensive runtime of the script). This shouldn't have a considerable effect on your statistics but you should be care
+ful in specifying the loop limits for the analysis scripts on the outputs (e.g. Thermal_analysis script).

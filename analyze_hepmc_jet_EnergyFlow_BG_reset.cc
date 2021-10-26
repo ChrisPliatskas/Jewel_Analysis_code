@@ -347,6 +347,7 @@ TFile fout(outname,"RECREATE");
   static float Rstep = 0.1;
   TString histname;
   TString htitle;
+  Double_t rho = -1.0;
 /* Bkg subtracted histograms applicable to Non-pp case- Not implemented for now
    TH2F *hbkgdensity = new TH2F("hbkgdensity","main jet rho,matched jet rho;main;matched",100,0,30, 100,0,30);
   hbkgdensity->Sumw2();
@@ -476,19 +477,27 @@ if (debug)cout << "Event " << endl;
 	vector <fastjet::PseudoJet> AcceptedJets[nR];
 	fastjet::ClusterSequenceArea *clustSeqCh[nR]={0};
 
+//	vector <fastjet::PseudoJet> BGJets[nR];                 // If we skip the R-dependent bkg jets calculation for now and instead choose a default R=0.4
+//	fastjet::ClusterSequenceArea *clustSeqBG[nR] = {0};	
+        vector <fastjet::PseudoJet> BGJets;        
+        fastjet::ClusterSequenceArea *clustSeqBG = 0;
+
 	for (int iR =0; iR < nR; iR++) {
       	float jetR = Rstep+Rstep*iR;
       	fastjet::JetDefinition jetDefCh(fastjet::antikt_algorithm, jetR,recombScheme, strategy);
       	clustSeqCh[iR]=new fastjet::ClusterSequenceArea(Tracks_in, jetDefCh,areaDef);
       	jets[iR] = clustSeqCh[iR]->inclusive_jets();
-	// Collection of jets before acceptance cut
+	// Applying the acceptance cut
 	for (auto j:jets[iR]) if(fabs(j.eta()) < max_eta_jet)AcceptedJets[iR].push_back(j);
-	// Collection of jets after acceptance cut
-	for (auto k:AcceptedJets[iR]){
-		hJetPt[iR]->Fill(k.pt(),evt->weights()[0]);
-		hJetEta[iR]->Fill(k.eta(),evt->weights()[0]);		
-				     }  }
-//Jet matching
+	 }
+
+        //Jet matching
+        //These variables are needed in order to reset the momentum of the accepted jets in the case of background subtraction
+        Double_t pt_BKG = 0.0;
+        Double_t phi_BKG = 0.0;
+        Double_t y_BKG = 0.0;
+        Double_t mass_BKG = 0.0;
+
 	Double_t DeltaPt = 0.0;
 	Double_t DeltaR = 0.0 ;
 	Double_t DeltaEta = 0.0;
@@ -505,15 +514,46 @@ if (debug)cout << "Event " << endl;
 // This array points to the high R jet that matches to each low R jet
 	TArrayI iHighRIndex;
 
-	for (int iR =0; iR < nR-1; iR++) {
 	
-	Double_t Maxdist = 0.2;
-	
+ // Inside the if clause I should empty the AcceptedJets in fjinputs, calculate the BGjets, use the subtractor and then refill Accepted jets with fjInputs3. Not sure if I need an else clause 
+	if (do_bkg==1){
+		fastjet::JetMedianBackgroundEstimator bge;
+	        fastjet::Selector BGSelector = fastjet::SelectorAbsEtaMax(2.0);
+		fastjet::JetDefinition jetDefBG(fastjet::kt_algorithm, 0.4, recombScheme, strategy);
+	        fastjet::AreaDefinition fAreaDefBG(fastjet::active_area_explicit_ghosts,ghostSpec);
+                vector <fastjet::PseudoJet> fjInputs;
+                for (auto acc_jet:AcceptedJets[3]){
+                        for (auto acc_track:acc_jet.constituents())fjInputs.push_back(acc_track);
+                                                }
+        	clustSeqBG = new fastjet::ClusterSequenceArea(fjInputs, jetDefBG,fAreaDefBG);
+		BGJets = clustSeqBG->inclusive_jets();
+	        if(BGJets.size()==0) cout<<"Error: No BGJets found at R = 0.4"<<endl;
+	        bge.set_selector(BGSelector);
+	        bge.set_jets(BGJets);
+                rho = bge.rho();
+                
+                if(rho!=-1) for (int iR =0; iR < nR-1; iR++) 
+                                for(auto jet:AcceptedJets[iR]){
+                                        phi_BKG = jet.phi();
+                                        y_BKG = jet.rap();
+                                        mass_BKG = jet.m();        
+                                        pt_BKG = jet.pt() - rho*jet.area();
+                                        jet.reset_momentum_PtYPhiM(pt_BKG,y_BKG,phi_BKG,mass_BKG);         
+                                                                }
+                    }
+
+        for (int iR =0; iR < nR-1; iR++) {
+         Double_t Maxdist = 0.2;
+         for (auto k:AcceptedJets[iR]){
+                 hJetPt[iR]->Fill(k.pt(),evt->weights()[0]);
+                 hJetEta[iR]->Fill(k.eta(),evt->weights()[0]);    
+                                      }
+
         iLowRIndex.Set(AcceptedJets[iR+1].size());
         iHighRIndex.Set(AcceptedJets[iR].size());
 
         if(AcceptedJets[iR].size()==0||AcceptedJets[iR+1].size()==0) continue;
-	
+
         JetMatcher(&AcceptedJets[iR],kLowRJets,&AcceptedJets[iR+1],kHighRJets, iLowRIndex,iHighRIndex,0,Maxdist);
 
 	//Fill histograms
@@ -523,7 +563,6 @@ if (debug)cout << "Event " << endl;
 		Int_t match_index = iHighRIndex[j];
   //If a match exists then calculate the DeltaPt and DeltaEta quantities before filling the histograms
         if (iLowRIndex[match_index]==j){
-		
 		Pt_low = AcceptedJets[iR].at(j).pt();
 		Pt_high =AcceptedJets[iR+1].at(match_index).pt();
 		DeltaPt = Pt_high - Pt_low; 	
@@ -574,7 +613,7 @@ if (debug)cout << "Event " << endl;
       	delete clustSeqCh[iR];
       	clustSeqCh[iR]=0;
    	 }
-   
+        if (clustSeqBG) delete clustSeqBG;
  // delete the created event from memory
      delete evt;
 // read the next event

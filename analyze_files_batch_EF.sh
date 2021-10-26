@@ -23,7 +23,7 @@
 # indir=../$indir
 outdir=`basename $indir`
 
-lastfile=$firstfile+$nfile
+#lastfile=$firstfile+$nfile
 echo "nfile = $nfile"
 echo "lastfile = $lastfile"
 echo " indir = $indir"
@@ -43,7 +43,12 @@ do
   if [ -f $inpathfile ]
   then
  # ./analyze_hepmc_jet_Rdiff_new $indir/$ifile/$infile $outdir/jet_rdiff_NEW_$ifile
-  ./analyze_hepmc_jet_EnergyFlow $indir/$ifile/$infile $outdir/EF_jewel_$ifile 
+ # ./analyze_hepmc_jet_EnergyFlow $indir/$ifile/$infile $outdir/EF_jewel_Angularity_$ifile 
+ # If you want to perform EF flow with bkg subtraction (e.g. Recoil sample) 
+ # ./analyze_hepmc_jet_EnergyFlow_BG_hist $indir/$ifile/$infile $outdir/EF_jewel_BKG_$ifile
+# If you want to perform EF flow with bkg subtraction (e.g. Recoil sample) on a thermally smeared sample 
+./analyze_hepmc_jet_EnergyFlow_thermalBkg $indir/$ifile/$infile $outdir/EF_jewel_BKGthermal_$ifile
+ # Below are analysis scripts preceding the energy flow analysis with thermal bkg and various Rjet
 # ./analyze_hepmc_thermalBkg_DRjet_new $indir/$ifile/$infile $outdir/embedded_thermal_new_$ifile
  #  ./analyze_hepmc_thermalBkg_DRjet_inc $indir/$ifile/$infile $outdir/embedded_thermal_new_$ifile
 #  ./analyze_hepmc_thermalBkg_DRjet $indir/$ifile/$infile $outdir/embedded_thermal_$ifile

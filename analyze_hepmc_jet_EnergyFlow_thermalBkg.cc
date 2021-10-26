@@ -57,7 +57,7 @@ using std::endl;
 using std::vector;
 
 static const int debug = 0;
-static const int do_bkg = 0;//Enable when working with the Recoil sample
+static const int do_bkg = 1;//Enable when working with the Recoil sample
 static const int charged_jets = 1;
 
 //Secondary function to check if the particle is stable
@@ -304,7 +304,7 @@ TString outname(Form("%s%s.root",outbase,outlabel.Data()));
   cout << "Input: " << inname << ", output " << outname << endl;
 
 TFile fout(outname,"RECREATE");
- static const int nR = 5; // radii 0.1, 0.2, 0.3, 0.4, 0.5
+ static const int nR = 5; // radii 0.2, 0.4, 0.6, 0.8
 
   TH1F *hJetPt[nR] = {0};
   TH1F *hJetEta[nR] = {0};
@@ -320,14 +320,11 @@ TFile fout(outname,"RECREATE");
   TH3F *hDptPtEta_low[nR] = {0};
   TH3F *hDptPtEta_high[nR] = {0};  
   TH3F* hDptPtMultiplicity[nR] = {0};
-  TH2F* hJetPtConstZ[nR] = {0};
-  TH3F* hJetPtConstPtConstR[nR] = {0};
-  TH2F* hJetPtAngularity[nR] = {0};  
 
 //Binning choices;
- const int NPtBins = 200;
+ const int NPtBins = 100;
  const int PtBin_min = 0;
- const int PtBin_max = 200;
+ const int PtBin_max = 100;
  const int NEtaBins = 100;
  const float EtaBin_max = 1.0;
  const float maxEtapart = 2;
@@ -347,10 +344,11 @@ TFile fout(outname,"RECREATE");
   static float Rstep = 0.1;
   TString histname;
   TString htitle;
-/* Bkg subtracted histograms applicable to Non-pp case- Not implemented for now
-   TH2F *hbkgdensity = new TH2F("hbkgdensity","main jet rho,matched jet rho;main;matched",100,0,30, 100,0,30);
+  Double_t rho=-1.0;
+// Bkg subtracted histograms applicable to Non-pp case- Not implemented for now
+   TH1F *hbkgdensity = new TH1F("hbkgdensity","Background density median #rho distribution;#rho",100,0,300);
   hbkgdensity->Sumw2();
-*/
+
 
 
 // Creation of R-dependent histograms
@@ -373,24 +371,7 @@ for (Int_t iR=0; iR<nR; iR++){
         htitle = TString::Format("Matched jet #eta distribution for R=%.1f;#eta",Rjet);
         hJetEtaMatched[iR] = new TH1F(histname,htitle,NEtaBins,-EtaBin_max,EtaBin_max);
 
-//        histname = TString::Format("hJetPtConstPtConstR_R%02d",int(Rjet*10));
-//        htitle = TString::Format("Constituent pt distribution for R=%.1f; P_{t,jet} (GeV/c);P_{t,const} (GeV/c);#DeltaR_{jet-const}",Rjet);
-//        hJetPtConstPtConstR[iR] = new TH3F(histname,htitle,NPtBins,PtBin_min,PtBin_max,NPtBins/10,PtBin_min/10,PtBin_max/10,20,0,1);
-
 	if(iR<nR-1){
-	
-	histname = TString::Format("hJetPtConstZ_R%02d",int(Rjet*10));
-	htitle = TString::Format("Jet constituents P_{t} distribution for R=%.1f;Jet P_{t} (GeV/c);Constituent Z",Rjet);
-	hJetPtConstZ[iR] = new TH2F(histname,htitle,NPtBins,PtBin_min,PtBin_max,20,0,1);
-	
-	histname = TString::Format("hJetPtAngularity_R%02d",int(Rjet*10));
-	htitle = TString::Format("Jet angularity vs jet pt for R=%.1f;P_{t,jet}(GeV/c);Angularity",Rjet);
-	hJetPtAngularity[iR] = new TH2F(histname,htitle,NPtBins,PtBin_min,PtBin_max,20,0,1);
-
-        histname = TString::Format("hJetPtConstPtConstR_R%02d",int(Rjet*10));
-        htitle = TString::Format("Constituent pt distribution for R=%.1f; P_{t,jet} (GeV/c);P_{t,const} (GeV/c);#DeltaR_{jet-const}",Rjet);
-        hJetPtConstPtConstR[iR] = new TH3F(histname,htitle,NPtBins,PtBin_min,PtBin_max,NPtBins/10,PtBin_min/10,PtBin_max/10,20,0,1);
-
 	histname = TString::Format("hPtJetDeltaPt_R%02d",int(Rjet*10));
         htitle = TString::Format("#Deltap_{t} between R=%.1f and R=%.1f;p_{t,R=%.1f} (GeV/c);#Delta P_{t} (GeV/c)",Rjet,Rjet+Rstep,Rjet);
         hPtJetDeltaPt[iR] = new TH2F(histname,htitle,NPtBins,PtBin_min,PtBin_max,NDptBins,DPtBin_min,DPtBin_max);
@@ -399,7 +380,7 @@ for (Int_t iR=0; iR<nR; iR++){
         htitle = TString::Format("#Deltap_{t} vs #DeltaR between R=%.1f and R=%.1f;p_{t,R=%.1f} (GeV/c);#DeltaR;#Deltap_{t} (GeV/c)",Rjet,Rjet+Rstep,Rjet);
         hPtJetDeltaRDeltaPt[iR] = new TH3F(histname,htitle,NPtBins,PtBin_min,PtBin_max,NDRBins,DRBin_min,DRBin_max,NDptBins,DPtBin_min,DPtBin_max);
 
-        histname = TString::Format("hPtJetDeltaPtoverPt_R%02d_low",int(Rjet*10));
+ /*       histname = TString::Format("hPtJetDeltaPtoverPt_R%02d_low",int(Rjet*10));
         htitle = TString::Format("#Deltap_{t} between R=%.1f and R=%.1f over the p_{t} of R=%.1f;p_{t,R=%.1f} (GeV/c);#Deltap_{t}/p_{t}",Rjet,Rjet+Rstep,Rjet,Rjet);
         hPtJetDeltaPtoverPt_low[iR] = new TH2F(histname,htitle,NPtBins,PtBin_min,PtBin_max,100,0,2);
 
@@ -410,12 +391,12 @@ for (Int_t iR=0; iR<nR; iR++){
         histname = TString::Format("hEtaJetDeltaR_R%02d",int(Rjet*10));
         htitle = TString::Format("#DeltaR between R=%.1f and R=%.1f;#eta{R=%.1f};#DeltaR",Rjet,Rjet+Rstep,Rjet);
         hEtaJetDeltaR[iR] = new TH2F(histname,htitle,NEtaBins,-EtaBin_max,EtaBin_max,NDRBins,DRBin_min,DRBin_max);
-
+*/
         histname = TString::Format("hPtJetDeltaR_R%02d",int(Rjet*10));
         htitle = TString::Format("#DeltaR between R=%.1f and R=%.1f;p_{t,R=%.1f} (GeV/c);#DeltaR",Rjet,Rjet+Rstep,Rjet);
         hPtJetDeltaR[iR] = new TH2F(histname,htitle,NPtBins,PtBin_min,PtBin_max,NDRBins,DRBin_min,DRBin_max);
 	
-	histname = TString::Format("hDptPtDEta_R%02d",int(Rjet*10));
+/*	histname = TString::Format("hDptPtDEta_R%02d",int(Rjet*10));
         htitle = TString::Format("#DeltaP_{t} between R=%.1f and R=%.1fvs P_{t} vs #Delta#eta;#Deltap_{t,R=%.1f} (GeV/c);p_{t,R=%.1f} (GeV/c);#Delta #Eta",Rjet,Rjet+Rstep,Rjet);
         hDptPtDEta[iR] = new TH3F(histname,htitle,NDptBins,DPtBin_min,DPtBin_max,NPtBins,PtBin_min,PtBin_max,200,0,2);
 	
@@ -426,12 +407,25 @@ for (Int_t iR=0; iR<nR; iR++){
         histname = TString::Format("hDptPtEta_highR%02d",int(Rjet*10));
         htitle = TString::Format("#DeltaP_{t} between R=%.1f and R=%.1fvs P_{t} vs #eta;#Deltap_{t,R=%.1f} (GeV/c);p_{t,R=%.1f} (GeV/c); #Eta_{R=%.1f}",Rjet,Rjet+Rstep,Rjet,Rjet+Rstep);
         hDptPtEta_high[iR] = new TH3F(histname,htitle,NDptBins,DPtBin_min,DPtBin_max,NPtBins,PtBin_min,PtBin_max,NEtaBins,-EtaBin_max,EtaBin_max);
-	
+*/	
 	histname = TString::Format("hDptPtMultiplicity_R%02d",int(Rjet*10));
 	htitle = TString::Format("#DeltaP_{t} between R=%.1f and R=%.1f vs P_{t} vs multiplicity;#Deltap_{t,R=%.1f} (GeV/c);p_{t,R=%.1f} (GeV/c); Multiplicity",Rjet,Rjet+Rstep,Rjet,Rjet+Rstep);
-	hDptPtMultiplicity[iR]= new TH3F(histname,htitle,NDptBins,DPtBin_min,DPtBin_max,NPtBins,PtBin_min,PtBin_max,40,0,40);
+	hDptPtMultiplicity[iR]= new TH3F(histname,htitle,NDptBins,DPtBin_min,DPtBin_max,NPtBins,PtBin_min,PtBin_max,20,0,20);
 	}
 }
+
+//Thermal particle distributions
+       int nThermalParticles = 4000;
+          TF1* f_pT = new TF1("f_pT","x*exp(-x/0.3)", 0.0, 400.0);
+          f_pT->SetNpx(40000);
+  
+          TF1* f_eta = new TF1("f_eta", "1", -2.0, 2.0);
+          f_eta->SetNpx(200);
+  
+          TF1* f_phi = new TF1("f_phi", "1", (-1.0)*TMath::Pi(), TMath::Pi() );
+          f_phi->SetNpx(700);
+
+
 
 HepMC::GenEvent* evt = ascii_in.read_next_event();
   if (!evt) cerr << "Input file not found " << inname << endl;
@@ -446,38 +440,69 @@ if (debug)cout << "Event " << endl;
     hNEvent->Fill(0.5,evt->weights()[0]); // count events
 
     float max_eta_track = 2; //2.8;
-   // float min_pt =10;
+    float min_pt =10;
     float max_eta_jet = 0.9-Rstep*nR;
-    int index = 0;
+    int index = 1;
+    double fourvec[4];
     std::vector <fastjet::PseudoJet> Tracks_in;
+//    std::vector <fastjet::PseudoJet> fjInputs2;
     for ( HepMC::GenEvent::particle_iterator pit = evt->particles_begin();
           pit != evt->particles_end(); ++pit )
       {
         const HepMC::GenParticle *p = *pit;
-        if ((!p->end_vertex() && p->status()==1 && (!charged_jets || is_charged(p)))&& fabs(p->momentum().eta()) < max_eta_track){ hPtPartEta->Fill(p->momentum().perp(), p->momentum().eta(),evt->weights()[0]);
-        	if(p->momentum().perp()< 0.15) continue;
+        if ((!p->end_vertex() && p->status()==1 && (!charged_jets || is_charged(p)))&& fabs(p->momentum().eta()) < max_eta_track) hPtPartEta->Fill(p->momentum().perp(), p->momentum().eta(),evt->weights()[0]);
+        	if(p->momentum().perp()==0) continue;
                 double mom = sqrt(p->momentum().x()*p->momentum().x() +
                                   p->momentum().y()*p->momentum().y() +
                                   p->momentum().z()*p->momentum().z());
                 fastjet::PseudoJet jInp(p->momentum().x(),p->momentum().y(),p->momentum().z(),mom);
                 jInp.set_user_index(index);
                 Tracks_in.push_back(jInp);
-                index++;
-       }}
+
+
+
+               // index++;
+       }
+//Addition of Thermal particles here
+//Thermal particle definition
+  
+          for(int j = 0; j < nThermalParticles; j++)
+                  {
+                          double pT = f_pT->GetRandom();
+  
+                          double Eta = f_eta->GetRandom();
+  
+                          double Phi = f_phi->GetRandom();
+  
+                         // if(pT < trackLowPtCut) continue;//pt cut
+  
+                          fourvec[0] = pT*TMath::Cos(Phi);
+                          fourvec[1] = pT*TMath::Sin(Phi);
+                          fourvec[2] = pT*TMath::SinH(Eta);
+                          fourvec[3] = TMath::Sqrt(pT*pT + fourvec[2]*fourvec[2]);
+  
+                          fastjet::PseudoJet ThermalParticle(fourvec);
+  
+                          ThermalParticle.set_user_index(0);
+                          Tracks_in.push_back(ThermalParticle);
+                  }
 
 //Jet Finding
 	fastjet::GhostedAreaSpec ghostSpec(max_eta_track,1,0.01);
 	fastjet::Strategy               strategy = fastjet::Best;
-	fastjet::RecombinationScheme    recombScheme = fastjet::E_scheme;
+	fastjet::RecombinationScheme    recombScheme = fastjet::BIpt_scheme;
 	fastjet::AreaType areaType =   fastjet::active_area;
 	fastjet::AreaDefinition areaDef = fastjet::AreaDefinition(areaType,ghostSpec);
 
 	vector <fastjet::PseudoJet> jets[nR];
 	vector <fastjet::PseudoJet> AcceptedJets[nR];
 	fastjet::ClusterSequenceArea *clustSeqCh[nR]={0};
+        vector <fastjet::PseudoJet> BGJets;
+        fastjet::ClusterSequenceArea *clustSeqBG = 0;
+
 
 	for (int iR =0; iR < nR; iR++) {
-      	float jetR = Rstep+Rstep*iR;
+      	float jetR = 0.2+0.2*iR;
       	fastjet::JetDefinition jetDefCh(fastjet::antikt_algorithm, jetR,recombScheme, strategy);
       	clustSeqCh[iR]=new fastjet::ClusterSequenceArea(Tracks_in, jetDefCh,areaDef);
       	jets[iR] = clustSeqCh[iR]->inclusive_jets();
@@ -492,8 +517,8 @@ if (debug)cout << "Event " << endl;
 	Double_t DeltaPt = 0.0;
 	Double_t DeltaR = 0.0 ;
 	Double_t DeltaEta = 0.0;
-	Double_t Pt_low = 0.0;
-	Double_t Pt_high = 0.0;
+        Double_t Pt_low = 0.0;
+        Double_t Pt_high = 0.0;
 	Int_t Multiplicity = 0;
 	Int_t Njets = 200;      //Just a high number so that the matching matrix created by the matcher task will always have the size of the input jet lists
 	Int_t &kLowRJets = Njets;
@@ -505,6 +530,24 @@ if (debug)cout << "Event " << endl;
 // This array points to the high R jet that matches to each low R jet
 	TArrayI iHighRIndex;
 
+      if (do_bkg==1){
+                fastjet::JetMedianBackgroundEstimator bge;
+                fastjet::Selector BGSelector = fastjet::SelectorAbsEtaMax(2.0);
+                fastjet::JetDefinition jetDefBG(fastjet::kt_algorithm, 0.4, recombScheme, strategy);
+                fastjet::AreaDefinition fAreaDefBG(fastjet::active_area_explicit_ghosts,ghostSpec);
+                /*vector <fastjet::PseudoJet> fjInputs;
+                for (auto acc_jet:AcceptedJets[3]){
+                        for (auto acc_track:acc_jet.constituents())fjInputs.push_back(acc_track);
+                                                }
+           */     clustSeqBG = new fastjet::ClusterSequenceArea(Tracks_in, jetDefBG,fAreaDefBG);
+                BGJets = clustSeqBG->inclusive_jets();
+                if(BGJets.size()==0) cout<<"Error: No BGJets found at R = 0.4"<<endl;
+                bge.set_selector(BGSelector);
+                bge.set_jets(BGJets);
+                rho = bge.rho();
+               // cout<<"The bkg density is:"<<rho<<endl;
+                if(rho!=-1)hbkgdensity->Fill(rho,evt->weights()[0]);
+		}
 	for (int iR =0; iR < nR-1; iR++) {
 	
 	Double_t Maxdist = 0.2;
@@ -523,46 +566,43 @@ if (debug)cout << "Event " << endl;
 		Int_t match_index = iHighRIndex[j];
   //If a match exists then calculate the DeltaPt and DeltaEta quantities before filling the histograms
         if (iLowRIndex[match_index]==j){
-		
-		Pt_low = AcceptedJets[iR].at(j).pt();
-		Pt_high =AcceptedJets[iR+1].at(match_index).pt();
-		DeltaPt = Pt_high - Pt_low; 	
+
+                Pt_low = AcceptedJets[iR].at(j).pt();
+                Pt_high =AcceptedJets[iR+1].at(match_index).pt();
+                if (rho!=-1){
+                Pt_low = Pt_low - rho* AcceptedJets[iR].at(j).area();
+                Pt_high = Pt_high - rho* AcceptedJets[iR].at(j).area();
+                        }
+                if((Pt_low>0)&&(Pt_high>0))DeltaPt = Pt_high - Pt_low;
 //Multiplicity calculation
 		Multiplicity =AcceptedJets[iR].at(j).constituents().size();
-
+/*
 	if (AcceptedJets[iR].at(j).eta()*AcceptedJets[iR+1].at(match_index).eta()>=0)
 		DeltaEta = fabs(AcceptedJets[iR+1].at(match_index).eta()-AcceptedJets[iR].at(j).eta());
 	else{if(AcceptedJets[iR].at(j).eta()>0)
 		DeltaEta = AcceptedJets[iR].at(j).eta() - AcceptedJets[iR+1].at(match_index).eta();
 	     else DeltaEta =AcceptedJets[iR+1].at(match_index).eta() -AcceptedJets[iR].at(j).eta();
 	    }
-		
-		for(auto cont:AcceptedJets[iR].at(j).constituents()){
-			hJetPtConstZ[iR]->Fill(Pt_low,cont.pt()/Pt_low,evt->weights()[0]);
-			hJetPtAngularity[iR]->Fill(Pt_low,(cont.pt()/Pt_low)*AcceptedJets[iR].at(j).delta_R(cont),cont.pt()*evt->weights()[0]);			
-			hJetPtConstPtConstR[iR]->Fill(Pt_low,cont.pt(),AcceptedJets[iR].at(j).delta_R(cont),cont.pt()*evt->weights()[0]);}
-		
+*/
 		hDptPtMultiplicity[iR]->Fill(DeltaPt,AcceptedJets[iR].at(j).pt(),Multiplicity,evt->weights()[0]);
                 DeltaR = AcceptedJets[iR+1].at(match_index).delta_R(AcceptedJets[iR].at(j));
-		hJetPtMatched[iR]->Fill(AcceptedJets[iR].at(j).pt(),evt->weights()[0]);
+		hJetPtMatched[iR]->Fill(Pt_low,evt->weights()[0]);
 		hJetEtaMatched[iR]->Fill(AcceptedJets[iR].at(j).eta(),evt->weights()[0]);
-		hJetPtConstPtConstR[iR]->Scale(1/hJetPtMatched[iR]->Integral());
-
 		if(iR==nR-2){
-			hJetPtMatched[iR+1]->Fill(AcceptedJets[iR+1].at(match_index).pt(),evt->weights()[0]);
+			hJetPtMatched[iR+1]->Fill(Pt_high,evt->weights()[0]);
 			hJetEtaMatched[iR+1]->Fill(AcceptedJets[iR+1].at(match_index).eta(),evt->weights()[0]);	
 				}
 	
-		hDptPtDEta[iR]->Fill(DeltaPt,AcceptedJets[iR].at(j).pt(),DeltaEta,evt->weights()[0]);
-		hDptPtEta_low[iR]->Fill(DeltaPt,AcceptedJets[iR].at(j).pt(),AcceptedJets[iR].at(j).eta(),evt->weights()[0]);
-		hDptPtEta_high[iR]->Fill(DeltaPt,AcceptedJets[iR].at(j).pt(),AcceptedJets[iR+1].at(match_index).eta(),evt->weights()[0]);
+//		hDptPtDEta[iR]->Fill(DeltaPt,AcceptedJets[iR].at(j).pt(),DeltaEta,evt->weights()[0]);
+//		hDptPtEta_low[iR]->Fill(DeltaPt,AcceptedJets[iR].at(j).pt(),AcceptedJets[iR].at(j).eta(),evt->weights()[0]);
+//		hDptPtEta_high[iR]->Fill(DeltaPt,AcceptedJets[iR].at(j).pt(),AcceptedJets[iR+1].at(match_index).eta(),evt->weights()[0]);
 
 	
-		hPtJetDeltaPt[iR]->Fill(AcceptedJets[iR].at(j).pt(),DeltaPt,evt->weights()[0]);
-		hEtaJetDeltaR[iR]->Fill(AcceptedJets[iR].at(j).eta(),DeltaR,evt->weights()[0]);
+		if((Pt_low>0)&&(Pt_high>0))hPtJetDeltaPt[iR]->Fill(Pt_low,DeltaPt,evt->weights()[0]);
+//		hEtaJetDeltaR[iR]->Fill(AcceptedJets[iR].at(j).eta(),DeltaR,evt->weights()[0]);
 		hPtJetDeltaRDeltaPt[iR]->Fill(AcceptedJets[iR].at(j).pt(),DeltaR,DeltaPt,evt->weights()[0]);
-		hPtJetDeltaPtoverPt_low[iR]->Fill(AcceptedJets[iR].at(j).pt(),DeltaPt/AcceptedJets[iR].at(j).pt(),evt->weights()[0]);
-		hPtJetDeltaPtoverPt_high[iR]->Fill(AcceptedJets[iR].at(j).pt(),DeltaPt/AcceptedJets[iR+1].at(match_index).pt(),evt->weights()[0]);
+//		hPtJetDeltaPtoverPt_low[iR]->Fill(AcceptedJets[iR].at(j).pt(),DeltaPt/AcceptedJets[iR].at(j).pt(),evt->weights()[0]);
+//		hPtJetDeltaPtoverPt_high[iR]->Fill(AcceptedJets[iR].at(j).pt(),DeltaPt/AcceptedJets[iR+1].at(match_index).pt(),evt->weights()[0]);
 		hPtJetDeltaR[iR]->Fill(AcceptedJets[iR].at(j).pt(),DeltaR,evt->weights()[0]);
 						}
 					}

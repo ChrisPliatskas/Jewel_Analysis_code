@@ -16,6 +16,13 @@ nfile=${4:-10}
 
 for ((ifile=$firstfile;ifile<=$lastfile;ifile+=$nfile))
 do
-  qsub -V -N analyse_files_batch_Rdiff_lowR -q generic -o log -e log -v indir=$indir,infile=example.hepmc,firstfile=$ifile,nfile=$nfile analyze_files_batch_bkg.sh
+let  lastfile_job=$ifile+$nfile-1
+if [ $lastfile_job -gt $lastfile ]
+then
+	lastfile_job=$lastfile
+fi
+ qsub -V -N analyse_files_batch_EF_bkg -q long -o log -e log -v indir=$indir,infile=example.hepmc,firstfile=$ifile,lastfile=$lastfile_job analyze_files_batch_EF.sh
+
+ # qsub -V -N analyse_files_batch_EnergyFlow -q generic -o log -e log -v indir=$indir,infile=example.hepmc,firstfile=$ifile,nfile=$nfile analyze_files_batch_EF.sh
 done
 

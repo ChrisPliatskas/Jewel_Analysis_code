@@ -59,6 +59,7 @@ using std::vector;
 static const int debug = 0;
 static const int do_bkg = 1;//Enable when working with the Recoil sample
 static const int charged_jets = 1;
+static const float pi = 3.14159;
 
 //Secondary function to check if the particle is stable
 
@@ -143,14 +144,14 @@ int is_charged(const HepMC::GenParticle *part) {
   if (abs_kf==211 || abs_kf==321 || abs_kf==2212 || abs_kf==11 || abs_kf==13)
     return 1;
   else if (abs_kf != 22 && abs_kf!=111 && abs_kf!=130 && abs_kf!=2112 && abs_kf!=311 && abs_kf!=12 && abs_kf !=14 && abs_kf!=16)
-    cout << " Unexpected particle: kf=" << abs_kf << endl;
+   // cout << " Unexpected particle: kf=" << abs_kf << endl;
   return 0;
 }
 
 //Secondary function to calculate azimuthal angle difference
 float dphi(float phi1, float phi2) {
   float dphi=phi1-phi2;
-  float pi = 3.14159;
+//  float pi = 3.14159;
   if (dphi < -pi)
     dphi+=2*pi;
   if (dphi > pi)
@@ -322,16 +323,16 @@ TFile fout(outname,"RECREATE");
   TH3F* hDptPtMultiplicity[nR] = {0};
 
 //Binning choices;
- const int NPtBins = 100;
- const int PtBin_min = 0;
- const int PtBin_max = 100;
- const int NEtaBins = 100;
+ const int NPtBins = 44;
+ const int PtBin_min =-20;
+ const int PtBin_max = 200;
+ const int NEtaBins = 20;
  const float EtaBin_max = 1.0;
  const float maxEtapart = 2;
  const int NDptBins = 100;
  const int DPtBin_min = -20;
  const int DPtBin_max = 80;
- const int NDRBins = 100;
+ const int NDRBins = 10;
  const float DRBin_min = 0;
  const float DRBin_max = 0.4;
 
@@ -410,7 +411,7 @@ for (Int_t iR=0; iR<nR; iR++){
 */	
 	histname = TString::Format("hDptPtMultiplicity_R%02d",int(Rjet*10));
 	htitle = TString::Format("#DeltaP_{t} between R=%.1f and R=%.1f vs P_{t} vs multiplicity;#Deltap_{t,R=%.1f} (GeV/c);p_{t,R=%.1f} (GeV/c); Multiplicity",Rjet,Rjet+Rstep,Rjet,Rjet+Rstep);
-	hDptPtMultiplicity[iR]= new TH3F(histname,htitle,NDptBins,DPtBin_min,DPtBin_max,NPtBins,PtBin_min,PtBin_max,20,0,20);
+	hDptPtMultiplicity[iR]= new TH3F(histname,htitle,NDptBins,DPtBin_min,DPtBin_max,NPtBins,PtBin_min,PtBin_max,20,0,100);
 	}
 }
 
@@ -438,7 +439,7 @@ HepMC::GenEvent* evt = ascii_in.read_next_event();
 if (debug)cout << "Event " << endl;
 
     hNEvent->Fill(0.5,evt->weights()[0]); // count events
-
+    double JetArea = 0.0;
     float max_eta_track = 2; //2.8;
     float min_pt =10;
     float max_eta_jet = 0.9-Rstep*nR;
@@ -488,12 +489,14 @@ if (debug)cout << "Event " << endl;
                   }
 
 //Jet Finding
-	fastjet::GhostedAreaSpec ghostSpec(max_eta_track,1,0.01);
+//	fastjet::GhostedAreaSpec ghostSpec(max_eta_track,1,0.01);
 	fastjet::Strategy               strategy = fastjet::Best;
-	fastjet::RecombinationScheme    recombScheme = fastjet::BIpt_scheme;
+	fastjet::RecombinationScheme    recombScheme = fastjet::pt_scheme;
 	fastjet::AreaType areaType =   fastjet::active_area;
-	fastjet::AreaDefinition areaDef = fastjet::AreaDefinition(areaType,ghostSpec);
+//	fastjet::AreaDefinition areaDef = fastjet::AreaDefinition(areaType,ghostSpec);
 
+	fastjet::GhostedAreaSpec *ghostSpec[nR] = {0};
+	fastjet::AreaDefinition *areaDef[nR]={0};
 	vector <fastjet::PseudoJet> jets[nR];
 	vector <fastjet::PseudoJet> AcceptedJets[nR];
 	fastjet::ClusterSequenceArea *clustSeqCh[nR]={0};
@@ -502,9 +505,12 @@ if (debug)cout << "Event " << endl;
 
 
 	for (int iR =0; iR < nR; iR++) {
-      	float jetR = 0.2+0.2*iR;
+      	float jetR = (iR+1)*Rstep;
+	JetArea = pi*jetR*jetR; 	//nominal jet area
       	fastjet::JetDefinition jetDefCh(fastjet::antikt_algorithm, jetR,recombScheme, strategy);
-      	clustSeqCh[iR]=new fastjet::ClusterSequenceArea(Tracks_in, jetDefCh,areaDef);
+	ghostSpec[iR] = new fastjet::GhostedAreaSpec(max_eta_track,1,JetArea/10);
+	areaDef[iR] = new fastjet::AreaDefinition(areaType,*ghostSpec[iR]); 
+    	clustSeqCh[iR] = new fastjet::ClusterSequenceArea(Tracks_in, jetDefCh,*areaDef[iR]);
       	jets[iR] = clustSeqCh[iR]->inclusive_jets();
 	// Collection of jets before acceptance cut
 	for (auto j:jets[iR]) if(fabs(j.eta()) < max_eta_jet)AcceptedJets[iR].push_back(j);
@@ -531,10 +537,11 @@ if (debug)cout << "Event " << endl;
 	TArrayI iHighRIndex;
 
       if (do_bkg==1){
+      		fastjet::GhostedAreaSpec ghostSpecBG(max_eta_track,1,0.01);
                 fastjet::JetMedianBackgroundEstimator bge;
                 fastjet::Selector BGSelector = fastjet::SelectorAbsEtaMax(2.0);
                 fastjet::JetDefinition jetDefBG(fastjet::kt_algorithm, 0.4, recombScheme, strategy);
-                fastjet::AreaDefinition fAreaDefBG(fastjet::active_area_explicit_ghosts,ghostSpec);
+                fastjet::AreaDefinition fAreaDefBG(fastjet::active_area_explicit_ghosts,ghostSpecBG);
                 /*vector <fastjet::PseudoJet> fjInputs;
                 for (auto acc_jet:AcceptedJets[3]){
                         for (auto acc_track:acc_jet.constituents())fjInputs.push_back(acc_track);
@@ -567,11 +574,12 @@ if (debug)cout << "Event " << endl;
   //If a match exists then calculate the DeltaPt and DeltaEta quantities before filling the histograms
         if (iLowRIndex[match_index]==j){
 
-                Pt_low = AcceptedJets[iR].at(j).pt();
+                if(AcceptedJets[iR].at(j).area()<0.6*pi*(Rstep*(iR+1))*(Rstep*(iR+1))) continue;
+		Pt_low = AcceptedJets[iR].at(j).pt();
                 Pt_high =AcceptedJets[iR+1].at(match_index).pt();
                 if (rho!=-1){
                 Pt_low = Pt_low - rho* AcceptedJets[iR].at(j).area();
-                Pt_high = Pt_high - rho* AcceptedJets[iR].at(j).area();
+                Pt_high = Pt_high - rho* AcceptedJets[iR+1].at(match_index).area();
                         }
                 if((Pt_low>0)&&(Pt_high>0))DeltaPt = Pt_high - Pt_low;
 //Multiplicity calculation
@@ -613,7 +621,13 @@ if (debug)cout << "Event " << endl;
 	for (int iR =0; iR < nR; iR++) {
       	delete clustSeqCh[iR];
       	clustSeqCh[iR]=0;
-   	 }
+   	delete ghostSpec[iR];
+	ghostSpec[iR]=0;
+	delete areaDef[iR];
+	areaDef[iR]=0;
+	delete clustSeqBG;
+	clustSeqBG = 0; 
+	}
    
  // delete the created event from memory
      delete evt;

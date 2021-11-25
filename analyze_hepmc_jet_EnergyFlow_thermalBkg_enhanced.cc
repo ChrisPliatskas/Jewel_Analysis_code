@@ -450,8 +450,8 @@ if (debug)cout << "Event " << endl;
     float max_eta_jet = 0.9-Rstep*nR;
     int index = 1;
     double fourvec[4];
-    std::vector <fastjet::PseudoJet> Tracks_in;
-//    std::vector <fastjet::PseudoJet> fjInputs2;
+    std::vector <fastjet::PseudoJet> Jewel_signal;
+    std::vector <fastjet::PseudoJet> Embedded_signal;
     for ( HepMC::GenEvent::particle_iterator pit = evt->particles_begin();
           pit != evt->particles_end(); ++pit )
       {
@@ -463,7 +463,8 @@ if (debug)cout << "Event " << endl;
                                   p->momentum().z()*p->momentum().z());
                 fastjet::PseudoJet jInp(p->momentum().x(),p->momentum().y(),p->momentum().z(),mom);
                 jInp.set_user_index(index);
-                Tracks_in.push_back(jInp);
+                Jewel_signal.push_back(jInp);
+                Embedded_signal.push_back(jInp);
 
 
 
@@ -490,7 +491,7 @@ if (debug)cout << "Event " << endl;
                           fastjet::PseudoJet ThermalParticle(fourvec);
   
                           ThermalParticle.set_user_index(0);
-                          Tracks_in.push_back(ThermalParticle);
+                          Embedded_signal.push_back(ThermalParticle);
                   }
 
 //Jet Finding
@@ -507,16 +508,25 @@ if (debug)cout << "Event " << endl;
 	fastjet::ClusterSequenceArea *clustSeqCh[nR]={0};
         vector <fastjet::PseudoJet> BGJets;
         fastjet::ClusterSequenceArea *clustSeqBG = 0;
+/*
+        vector <fastjet::PseudoJet> Sig_jets[nR];
+        vector <fastjet::PseudoJet> Sig_AcceptedJets[nR];
+        fastjet::ClusterSequenceArea *clustSeqCh_Sig[nR]={0};
 
-
+*/
 	for (int iR =0; iR < nR; iR++) {
       	float jetR = (iR+1)*Rstep;
-	int n_ghosts = 50;
-        JetArea = pi*jetR*jetR; 	//nominal jet area
+        int n_ghosts = 50;
+	JetArea = pi*jetR*jetR; 	//nominal jet area
       	fastjet::JetDefinition jetDefCh(fastjet::antikt_algorithm, jetR,recombScheme, strategy);
 	ghostSpec[iR] = new fastjet::GhostedAreaSpec(max_eta_track,1,JetArea/n_ghosts);
-	areaDef[iR] = new fastjet::AreaDefinition(areaType,*ghostSpec[iR]); 
-    	clustSeqCh[iR] = new fastjet::ClusterSequenceArea(Tracks_in, jetDefCh,*areaDef[iR]);
+	areaDef[iR] = new fastjet::AreaDefinition(areaType,*ghostSpec[iR]);
+        /*
+        clustSeqCh_Sig[iR] = new fastjet::ClusterSequenceArea(Jewel_signal, jetDefCh,*areaDef[iR]);
+        Sig_jets[iR] = clustSeqCh_Sig[iR]->inclusive_jets();
+        for (auto j:jets[iR]) if(fabs(j.eta()) < max_eta_jet)AcceptedJets[iR].push_back(j);
+        */
+    	clustSeqCh[iR] = new fastjet::ClusterSequenceArea(Embedded_signal, jetDefCh,*areaDef[iR]);
       	jets[iR] = clustSeqCh[iR]->inclusive_jets();
 	// Collection of jets before acceptance cut
 	for (auto j:jets[iR]) if(fabs(j.eta()) < max_eta_jet)AcceptedJets[iR].push_back(j);
@@ -535,7 +545,16 @@ if (debug)cout << "Event " << endl;
 	Int_t Njets = 200;      //Just a high number so that the matching matrix created by the matcher task will always have the size of the input jet lists
 	Int_t &kLowRJets = Njets;
 	Int_t &kHighRJets = Njets;
+/*
+        Int_t &kLowRJets_sig = Njets;
+        Int_t &kHighRJets_sig = Njets;
 
+        TArrayI iLowRIndex_sig;
+        TArrayI iHighRIndex_sig;
+
+
+
+*/
 //This array points to the low R jet that matches to each high R jet
 	TArrayI iLowRIndex;
 
@@ -548,11 +567,7 @@ if (debug)cout << "Event " << endl;
                 fastjet::Selector BGSelector = fastjet::SelectorAbsEtaMax(2.0);
                 fastjet::JetDefinition jetDefBG(fastjet::kt_algorithm, 0.4, recombScheme, strategy);
                 fastjet::AreaDefinition fAreaDefBG(fastjet::active_area_explicit_ghosts,ghostSpecBG);
-                /*vector <fastjet::PseudoJet> fjInputs;
-                for (auto acc_jet:AcceptedJets[3]){
-                        for (auto acc_track:acc_jet.constituents())fjInputs.push_back(acc_track);
-                                                }
-           */     clustSeqBG = new fastjet::ClusterSequenceArea(Tracks_in, jetDefBG,fAreaDefBG);
+                clustSeqBG = new fastjet::ClusterSequenceArea(Embedded_signal, jetDefBG,fAreaDefBG);
                 BGJets = clustSeqBG->inclusive_jets();
                 if(BGJets.size()==0) cout<<"Error: No BGJets found at R = 0.4"<<endl;
                 bge.set_selector(BGSelector);
